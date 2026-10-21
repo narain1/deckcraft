@@ -40,3 +40,11 @@ PDF export uses the fallible slide renderer for slide artwork in slide, notes, a
 The new native enum variant is a matching change for downstream callers that exhaustively match `PdfError`. Its display message names slide rendering, and its error source retains the native `RenderError`. This does not promise that all renderer allocation failures or process aborts are recoverable, or change other renderer entry points. The renderer's process-global panic count is not used to decide whether PDF export succeeded.
 
 The focused PDF regression reaches `Busy` through actual nested export inside an outer render callback, checks all three layouts, and verifies outer rendering and later export recovery. The renderer package separately tests caught callback panics; the PDF regression does not claim to inject a caught renderer panic through PDF export. Successful rendering, text, links, notes, and handout algorithms remain unchanged.
+
+## Explicit line breaks and selectable text
+
+The slide text layer and notes/handout master text use the model's logical paragraph
+text when mapping layout character ranges. An explicit line-break run contributes
+one character even though its stored text field is empty. Keeping that character
+in the source projection prevents later searchable text from shifting or losing
+characters; rendering geometry and the native shaping/layout algorithms are unchanged.
