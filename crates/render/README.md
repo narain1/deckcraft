@@ -1,0 +1,7 @@
+# Slide rendering results
+
+`try_render_slide` and `try_render_slide_drawn` return a per-call `Result`. A blank slide remains a successful image. `RenderError::InvalidSlideIndex`, `Busy` and `Panicked` distinguish an absent slide, a renderer already borrowed on the calling thread, and a caught rendering panic. The fallible functions do not allocate a white replacement image after failure or include panic payloads in returned errors. The process panic hook still runs and may log its payload.
+
+Successful pixels and drawing extents follow the existing renderer. `render_slide` and `render_slide_drawn` retain the legacy interface: an invalid index returns an empty `Image::default()` and the slide extent; a caught panic returns a sized white image and the slide extent. Reentrant legacy calls now also return that white fallback instead of a nested mutable-borrow panic that could escape during cleanup. This is a deliberate safety improvement for previously panicking reentry, not a claim of identical old behavior. A fallible reentrant call reports `Busy` without resetting the active renderer or counting a rendering panic.
+
+`panics_caught()` remains a process-wide diagnostic. It is not a substitute for a per-call result when rendering concurrently. A caught panic resets that thread's renderer after its mutable borrow unwinds; the next healthy call can render normally. These functions do not make all raster allocations fallible, catch process aborts or replace caller resource limits. Other rendering entry points keep their existing contracts.

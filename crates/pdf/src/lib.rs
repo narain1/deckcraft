@@ -39,6 +39,9 @@ pub enum PdfError {
     NoPages,
     #[error("PDF writer: {0}")]
     Write(String),
+    /// Slide artwork could not be rendered; no replacement blank PDF is returned.
+    #[error("slide rendering: {0}")]
+    Render(#[from] deckcraft_render::RenderError),
 }
 
 impl From<write::WriteError> for PdfError {
@@ -127,6 +130,8 @@ pub fn notes_slide_box(paper: (f64, f64), aspect: f64) -> Rect {
 }
 
 /// Export `pres` as PDF bytes.
+///
+/// Slide-render failures propagate as [`PdfError::Render`]; they do not become blank artwork.
 pub fn export(pres: &Presentation, opts: &PdfOptions) -> Result<Vec<u8>> {
     write::guard(|| export_inner(pres, opts))
 }
@@ -444,8 +449,8 @@ impl Exporter<'_> {
         // Two rasters per slide: the backdrop (background, master and layout graphics) is the same
         // on every slide that shares its layout, so the writer stores it once, and the slide's own
         // shapes draw over it (#845).
-        let back = deckcraft_render::render_slide_part(pres, i, deckcraft_render::SlidePart::Backdrop, &ropts);
-        let front = deckcraft_render::render_slide_part(pres, i, deckcraft_render::SlidePart::Content, &ropts);
+        let back = deckcraft_render::try_render_slide_part(pres, i, deckcraft_render::SlidePart::Backdrop, &ropts)?;
+        let front = deckcraft_render::try_render_slide_part(pres, i, deckcraft_render::SlidePart::Content, &ropts)?;
         let (w, h) = (back.width, back.height);
         if w > 0
             && h > 0
@@ -677,3 +682,6 @@ fn to_path(bp: &kurbo::BezPath) -> Option<krilla::geom::Path> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_fallible;
