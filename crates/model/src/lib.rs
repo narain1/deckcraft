@@ -14,11 +14,13 @@ pub mod defaults;
 pub mod edit;
 pub mod numfmt;
 pub mod resolve;
+mod slide_copy;
 pub mod style;
 pub mod table;
 pub mod text;
 pub mod theme;
 mod trendline;
+pub use slide_copy::CopySlideError;
 pub mod words;
 
 use std::sync::Arc;
