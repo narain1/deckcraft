@@ -39,6 +39,9 @@ pub enum PdfError {
     NoPages,
     #[error("PDF writer: {0}")]
     Write(String),
+    /// Slide artwork could not be rendered; no replacement blank PDF is returned.
+    #[error("slide rendering: {0}")]
+    Render(#[from] deckcraft_render::RenderError),
 }
 
 impl From<write::WriteError> for PdfError {
@@ -127,6 +130,8 @@ pub fn notes_slide_box(paper: (f64, f64), aspect: f64) -> Rect {
 }
 
 /// Export `pres` as PDF bytes.
+///
+/// Slide-render failures propagate as [`PdfError::Render`]; they do not become blank artwork.
 pub fn export(pres: &Presentation, opts: &PdfOptions) -> Result<Vec<u8>> {
     write::guard(|| export_inner(pres, opts))
 }
@@ -415,7 +420,7 @@ impl Exporter<'_> {
         let k = b.width() / sw;
         // Raster at the requested dpi relative to the box size on paper.
         let scale = (b.width() / 72.0 * self.opts.dpi.clamp(36.0, 600.0)) / sw;
-        let img = deckcraft_render::render_slide(pres, i, &RenderOpts { scale, threads: 4, ..Default::default() });
+        let img = deckcraft_render::try_render_slide(pres, i, &RenderOpts { scale, threads: 4, ..Default::default() })?;
         if img.width > 0 && img.height > 0 {
             let (w, h) = (img.width, img.height);
             // Taken, not copied: a print-resolution slide is ~16 MB.
@@ -651,3 +656,6 @@ fn to_path(bp: &kurbo::BezPath) -> Option<krilla::geom::Path> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_fallible;

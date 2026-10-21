@@ -32,3 +32,11 @@ gates. PDF contract tests also run with `wasm-bindgen-test-runner` on
 retained Krilla image/text features and the development-only parser boundary.
 
 This migration does not add vector slide artwork or change text-shaping/ToUnicode policy.
+
+## Rendering failures
+
+PDF export uses the fallible slide renderer for slide artwork in slide, notes, and handout pages. A native rendering error propagates as `PdfError::Render(RenderError)` through the existing `Result<Vec<u8>>`; the caller receives no successful PDF bytes with replacement blank artwork. Genuinely blank slides still export normally. Existing `NoPages` and `Write` errors retain their contracts.
+
+The new native enum variant is a matching change for downstream callers that exhaustively match `PdfError`. Its display message names slide rendering, and its error source retains the native `RenderError`. This does not promise that all renderer allocation failures or process aborts are recoverable, or change other renderer entry points. The renderer's process-global panic count is not used to decide whether PDF export succeeded.
+
+The focused PDF regression reaches `Busy` through actual nested export inside an outer render callback, checks all three layouts, and verifies outer rendering and later export recovery. The renderer package separately tests caught callback panics; the PDF regression does not claim to inject a caught renderer panic through PDF export. Successful rendering, text, links, notes, and handout algorithms remain unchanged.
